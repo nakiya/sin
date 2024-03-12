@@ -1,0 +1,37 @@
+(define-minor-mode transliteration-mode
+  "Toggle transliteration mode."
+  :lighter " Trans"
+  :keymap nil
+  (if transliteration-mode
+      (add-hook 'post-self-insert-hook 'transliterate-on-whitespace nil t)
+    (remove-hook 'post-self-insert-hook 'transliterate-on-whitespace t)))
+
+(defvar transliteration-server-url "http://localhost:4001")
+
+(defun transliterate-on-whitespace ()
+  (when (member (char-before) '(?\s ?\t ?\n))
+    (let* ((whitespace-char (char-to-string (char-before)))
+           (start (save-excursion (backward-char) (skip-syntax-backward "w_") (point)))
+           (end (point))
+           (text (buffer-substring-no-properties start end))
+           (trans-call-start (current-time))
+           (transliterated-text (string-trim (transliterate-using-server text)))
+           (trans-call-end (current-time))
+           (trans-call-elapsed-time (float-time (time-subtract trans-call-end trans-call-start)))
+           (_ (message "Transliteration call latency: %.3fs" trans-call-elapsed-time)))
+      (delete-region start end)
+      (goto-char start)
+      (insert transliterated-text)
+      (insert whitespace-char))))
+
+(defun transliterate-using-server (text)
+  (let ((url-request-method "POST")
+        (url-request-extra-headers '(("Content-Type" . "text/plain;charset=utf-8")))
+        (url-request-data text))
+    (with-current-buffer (url-retrieve-synchronously transliteration-server-url)
+      (goto-char (point-min))
+      (re-search-forward "^$")
+      (decode-coding-string (buffer-substring (point) (point-max)) 'utf-8))))
+
+
+(global-set-key (kbd "C-s") 'transliteration-mode)

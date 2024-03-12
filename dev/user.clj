@@ -24,4 +24,6 @@
 
   (+ 1 2)
 
-  (tap> (Exception. "e")))
+  (tap> (Exception. "e"))
+
+  #_f)
